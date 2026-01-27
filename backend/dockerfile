@@ -1,0 +1,42 @@
+
+# ---------- Build Stage ----------
+FROM python:3.11-slim AS builder
+
+# Set working directory
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+# Copy source code
+COPY . .
+
+# Install Django directly (optional, remove if not needed)
+RUN pip install --no-cache-dir Django djangorestframework
+
+# ---------- Runtime Stage ----------
+# ---------- Runtime Stage ----------
+FROM python:3.11-slim
+
+# Create non-root user
+RUN useradd -m django
+
+# 🔴 COPY packages and app from builder
+COPY --from=builder /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=builder /app /app
+
+# 🔴 Permission fix: give ownership of /app to django user
+RUN chown -R django:django /app && chmod -R 755 /app
+
+
+# 🔴 Switch to non-root user AFTER permission fix
+USER django
+
+# Set working directory
+WORKDIR /app
+
+# Expose port
+EXPOSE 8000
+
+# Start Django server
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
